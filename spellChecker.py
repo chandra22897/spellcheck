@@ -34,7 +34,7 @@ def SpellChecker(fileName, unflag=None, outputFile="sp_result.txt", num=-1):
         isJson=True
         import json
         
-        dic=json.load(f)                               #dictionary containing list containing dictionary
+        dic=json.load(f)                               
         f.close()
 
         for i in dic:
