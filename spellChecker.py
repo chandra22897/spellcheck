@@ -1,30 +1,26 @@
 # requires pyspellchecker library (pip install pyspellchecker)
-# Contains two functions, SpellChecker checks one file, SpellCheckerF checks a folder of files
+# Contains three functions, SpellCheck checks one file, SpellCheckF checks a folder of files. SpellCheckHelp is used in the other functions.
 
-# SpellChecker function, checks spelling of values in a file
-# Parameters: Name of file, values to exclude (optional), output file(optional), file number (shouldn't be edited)
-def SpellChecker(fileName, unflag=None, outputFile="sp_result.txt", num=-1): 
-    from spellchecker import SpellChecker
+from spellchecker import SpellChecker
+from datetime import datetime
+import os 
+import json
+import concurrent.futures
 
+# SpellChecker function, checks spelling of values in a file and returns string of results
+# Parameters: Name of file, values to exclude (optional), output file(optional)
+def SpellCheckHelp(fileName, unflag=None): 
     #create lists for words, list for keys and boolean if json
+    result=""
+    
     wordList=[]
     
     isJson=False
     keyList=[]
+
     f=open(fileName)
-    if(num>0): 
-        output=open(outputFile, "a")  
-        print("\n", file=output)
-    else:output=open(outputFile, "w")
-
-    if(num!=-1):
-        print("File", num+1, fileName, file=output)
-
-
-    #for plain text files without formatting
+    
     if (fileName[len(fileName)-4:]==".txt"):
-        
-        
         s=f.read()
         wordList=s.split(" ")
         f.close()
@@ -32,7 +28,7 @@ def SpellChecker(fileName, unflag=None, outputFile="sp_result.txt", num=-1):
     #for json files
     elif (fileName[len(fileName)-5:]==".JSON"):           
         isJson=True
-        import json
+        
         
         dic=json.load(f)                               
         f.close()
@@ -47,7 +43,7 @@ def SpellChecker(fileName, unflag=None, outputFile="sp_result.txt", num=-1):
         n=0
         while(n<len(wordList)):
             
-            str=wordList[n]
+            st=wordList[n]
             L=wordList[n].split()
             
             if(len(L)>1):
@@ -57,18 +53,15 @@ def SpellChecker(fileName, unflag=None, outputFile="sp_result.txt", num=-1):
                     wordList.insert(n,L[i]) 
                     keyList.insert(n,keyList[n])                  
                     i-=1
-                wordList.remove(str)        
+                wordList.remove(st)        
                 keyList.remove(keyList[n])
             n+=1
 
     # Error message
     else:
-        print("File type not supported", file=output)
-        return
+        return "File type not supported\n"
 
-    #Run spellcheck on word wordList
-    
-    spell = SpellChecker(distance=1)
+    # creates spellchecker object
     spell = SpellChecker()
 
     #adds special words to the dictionary
@@ -77,7 +70,8 @@ def SpellChecker(fileName, unflag=None, outputFile="sp_result.txt", num=-1):
     
     #runs spell checker and puts misspelled words in a list
     misspelled=list(spell.unknown(wordList))              
-
+    if misspelled[0]=='': return "No mistakes\n"
+    
     # creates output             
     if(isJson): 
         mpKeys=[]
@@ -89,22 +83,42 @@ def SpellChecker(fileName, unflag=None, outputFile="sp_result.txt", num=-1):
                 mpKeys.append(keyList[wordList.index(word.capitalize())]) 
             
             
-            print(misspelled[i].ljust(20), spell.correction(misspelled[i]).ljust(20), "Key: ", mpKeys[i], sep="", file=output)
+            result+=f"{misspelled[i].ljust(20)} {spell.correction(misspelled[i]).ljust(20)}Key:{mpKeys[i]}\n"
           
     else:
         for i, word in enumerate(misspelled):
-            print(misspelled[i].ljust(20), spell.correction(misspelled[i]),sep="", file=output)
+            result+=f"{misspelled[i].ljust(20)} {spell.correction(misspelled[i]).ljust(20)}\n"
+    
+    return result
 
+def SpellCheck(fileName, unflag=None, outputFile=None):
+    if outputFile==None:
+        outputFile="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
+    output=open(outputFile, 'w')
+    print(SpellCheckHelp(fileName, unflag=unflag), file=output)
     output.close()
-    return misspelled
- 
-# Runs SpellChecker() on each file in a folder
+
+
+
+# Runs SpellChecker() on each file in a folder and returns an output file. Uses multithreading.
 # Parameters: Name of folder, words to exclude (optional), output file(optional)
-def SpellCheckerF(folderName, unflag=None, outputFile="sp_result.txt"):
-    import os 
-    for n,file in enumerate(os.scandir(folderName)):
-        SpellChecker(file.path, unflag=unflag, num=n, outputFile=outputFile)
-  
+def SpellCheckF(folderName, unflag=None, outputFile=None):
+    if outputFile==None:
+        outputFile="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
+    output=open(outputFile, 'w')
+    
+    files=os.scandir("New Folder")
+   
+    str_files=[]
+    for f in files:
+        str_files.append(f.path)
 
-
-
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results=executor.map(lambda p:SpellCheckHelp(p, unflag=unflag), str_files)
+        for n,result in enumerate(results):
+            print(f"File {n+1}: {str_files[n]}",file=output)
+            print(result, file=output)
+    output.close()
+            
+            
+       
