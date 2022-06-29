@@ -1,5 +1,5 @@
 # requires pyspellchecker library (pip install pyspellchecker)
-# Contains three functions, SpellCheck checks one file, SpellCheckF checks a folder of files. SpellCheckHelp is used in the other functions.
+# Contains three functions, SpellCheck checks one file, SpellCheckF checks a folder of files. SpellCheckHelp is used in the other functions
 
 from spellchecker import SpellChecker
 from datetime import datetime
@@ -8,7 +8,7 @@ import json
 import concurrent.futures
 
 # SpellChecker function, checks spelling of values in a file and returns string of results
-# Parameters: Name of file, values to exclude (optional), output file(optional)
+# Parameters: Name of file, values to exclude (optional)
 def SpellCheckHelp(fileName, unflag=None): 
     #create lists for words, list for keys and boolean if json
     result=""
@@ -91,6 +91,8 @@ def SpellCheckHelp(fileName, unflag=None):
     
     return result
 
+# Runs a spell check on a file and prints results to a file
+# Parameters: Name of file, words to exclude(optional), name of output file(optional)
 def SpellCheck(fileName, unflag=None, outputFile=None):
     if outputFile==None:
         outputFile="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
@@ -100,8 +102,8 @@ def SpellCheck(fileName, unflag=None, outputFile=None):
 
 
 
-# Runs SpellChecker() on each file in a folder and returns an output file. Uses multithreading.
-# Parameters: Name of folder, words to exclude (optional), output file(optional)
+# Runs a spell check on each file in a folder and returns an output file
+# Parameters: Name of folder, words to exclude(optional), name of output file(optional)
 def SpellCheckF(folderName, unflag=None, outputFile=None):
     if outputFile==None:
         outputFile="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
@@ -121,4 +123,3 @@ def SpellCheckF(folderName, unflag=None, outputFile=None):
     output.close()
             
             
-       
