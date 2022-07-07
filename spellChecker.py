@@ -41,22 +41,6 @@ def SpellCheckHelp(fileName, unflag=None):
         # print(len(keyList), len(wordList))
 
         #in case of multiple words 
-        # n=0
-        # while n<len(wordList):
-        #     wordList[n].lower()
-            
-            
-        #     Words=re.split(", |\. |; |: |\n| ",Str)
-        #     print(wordList)
-        #     if (len(Words)>1):
-        #         del wordList[n],keyList[n]
-        #         for word in reversed(Words):
-        #          wordList.insert(n,Str)
-        #          keyList.insert(n,keyList[n])
-
-
-       
-
         n=0
         while(n<len(wordList)):
             wordList[n]=wordList[n].lower()         #for later, bcs library does it anyways
@@ -90,17 +74,6 @@ def SpellCheckHelp(fileName, unflag=None):
     
     #runs spell checker and puts misspelled words in a list
     misspelled=list(spell.unknown(wordList))
-    
-    
-    # print(len(misspelled))
-    # for x in range(500):
-    #     del misspelled[x]
-    # print(len(misspelled))
-    # print(len(misspelled))
-    # for i in misspelled:
-    #     print(i)
-    # print('fin :)')
-
 
     if len(wordList)==0 or wordList[0]=="": return "No mistakes\n"
     
