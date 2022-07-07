@@ -194,6 +194,6 @@ def SpellCheckerSeq(folderName):
 
 
 def main():
-    SpellCheckF("Large Folder", outputFile='Trash\\trash.txt')
+    #     run tests here
 if __name__== '__main__':
     main()
