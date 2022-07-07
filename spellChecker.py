@@ -38,10 +38,33 @@ def SpellCheckHelp(fileName, unflag=None):
         f.close()
         
         keyList,wordList=getJSONValues(dic)
- 
+        # print(len(keyList), len(wordList))
+
+        #in case of multiple words 
+        # n=0
+        # while n<len(wordList):
+        #     wordList[n].lower()
+            
+            
+        #     Words=re.split(", |\. |; |: |\n| ",Str)
+        #     print(wordList)
+        #     if (len(Words)>1):
+        #         del wordList[n],keyList[n]
+        #         for word in reversed(Words):
+        #          wordList.insert(n,Str)
+        #          keyList.insert(n,keyList[n])
+
+
+       
+
         n=0
         while(n<len(wordList)):
-            wordList[n]=wordList[n].lower()              
+            wordList[n]=wordList[n].lower()         #for later, bcs library does it anyways
+            
+            
+            #Words=wordList[n].split()
+            # Words=re.split(", |,|\. |\.|; |;|: |:|\n|_|!|! |? |?| ",wordList[n])
+            # Words=spell.split_words(wordList[n])
             Words=re.split(r"[-/_;:,.!?\s()]\s*",wordList[n])
             if (len(Words)>1):
                 k=keyList[n]
@@ -51,8 +74,10 @@ def SpellCheckHelp(fileName, unflag=None):
                 for word in reversed(Words):
                     
                     wordList.insert(n,word)
-                    keyList.insert(n, k)            
+                    keyList.insert(n, k)
+                
             n+=1
+            
 
     # Error message
     else:
@@ -66,6 +91,17 @@ def SpellCheckHelp(fileName, unflag=None):
     #runs spell checker and puts misspelled words in a list
     misspelled=list(spell.unknown(wordList))
     
+    
+    # print(len(misspelled))
+    # for x in range(500):
+    #     del misspelled[x]
+    # print(len(misspelled))
+    # print(len(misspelled))
+    # for i in misspelled:
+    #     print(i)
+    # print('fin :)')
+
+
     if len(wordList)==0 or wordList[0]=="": return "No mistakes\n"
     
     # creates output             
@@ -73,6 +109,12 @@ def SpellCheckHelp(fileName, unflag=None):
         mpKeys=[]
         for i, word in enumerate(misspelled):
             mpKeys.append(keyList[wordList.index(word)])
+            # try:                                                
+            #     mpKeys.append(keyList[wordList.index(word)])                    
+            # except(ValueError):
+            #     mpKeys.append(keyList[wordList.index(word.capitalize())]) 
+            
+            
             result+=f"{misspelled[i].ljust(20)} {spell.correction(misspelled[i]).ljust(20)}Key:{mpKeys[i]}\n"
     
     else:
@@ -97,7 +139,7 @@ def SpellCheck(fileName, unflag=None, outputFile=None):
 def SpellCheckF(folderName, unflag=None, outputFile=None):
     if outputFile==None:
         outputFile="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
-    output=open(outputFile, 'w')
+    output=open(outputFile, 'w', encoding='utf-8')
     
     files=os.scandir(folderName)
    
@@ -105,23 +147,22 @@ def SpellCheckF(folderName, unflag=None, outputFile=None):
     for f in files:
         str_files.append(f.path)
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        results=executor.map(lambda p:SpellCheckHelp(p, unflag=unflag), str_files)
-        for n,result in enumerate(results):
-            print(f"File {n+1}: {str_files[n]}",file=output)
-            print(result, file=output)
-    output.close()
-
-    # with concurrent.futures.ProcessPoolExecutor() as executor:                #trying to use multiprocessing, getting Broken Process Error
-    #     results=executor.map(SpellCheckHelp, str_files)
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     results=executor.map(lambda p:SpellCheckHelp(p, unflag=unflag), str_files)
     #     for n,result in enumerate(results):
     #         print(f"File {n+1}: {str_files[n]}",file=output)
     #         print(result, file=output)
     # output.close()
 
+    with concurrent.futures.ProcessPoolExecutor() as executor:                
+        results=executor.map(SpellCheckHelp, str_files)
+        for n,result in enumerate(results):
+            print(f"File {n+1}: {str_files[n]}",file=output)
+            print(result, file=output)
+    output.close()
 
-# Reads values from a JSON Dictionary, outputs a list of values and a list of keys
-# Parameters: Converted JSON file. Words and Keys should be empty.
+
+
 def getJSONValues(Obj, Words=[], Keys=[]):
     if isinstance(Obj, dict):
         for inner_obj_key in Obj.keys():
@@ -139,7 +180,7 @@ def getJSONValues(Obj, Words=[], Keys=[]):
     return Keys,Words
 
 
-# For testing and comparing to parallel processing 
+                
 def SpellCheckerSeq(folderName):
 
     output=open("Trash\\trash.txt", 'w')
@@ -149,3 +190,10 @@ def SpellCheckerSeq(folderName):
         # print(file.path)
     output.close()
     
+                
+
+
+def main():
+    SpellCheckF("Large Folder", outputFile='Trash\\trash.txt')
+if __name__== '__main__':
+    main()
