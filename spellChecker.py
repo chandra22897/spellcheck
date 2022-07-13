@@ -7,7 +7,7 @@ from datetime import datetime
 import os 
 import json
 from concurrent.futures import ProcessPoolExecutor
-from re import split
+import re
 from itertools import repeat
 import requests
 
@@ -22,7 +22,7 @@ def SpellCheck(uri, unflagFN=None, outputFN=OPFN):
         u=open(unflagFN, encoding='utf-8')
         st=u.read()
         u.close()
-        UF_List=split(r"[-/_;:,.!?\s()]\s*",st)
+        UF_List=re.split(r"[-/_;:,.!?\s()]\s*",st)
 
     # prints output to txt file
     output=open(outputFN, 'w', encoding='utf-8')
@@ -46,7 +46,7 @@ def SpellCheckMult(inputFN, unflagFN=None, outputFN=OPFN):
         u=open(unflagFN, encoding='utf-8')
         st=u.read()
         u.close()
-        UF_List=split(r"[-/_;:,.!?\s()]\s*",st)
+        UF_List=re.split(r"[-/_;:,.!?\s()]\s*",st)
     
     # Checks for bad uris
     for a in uris:
@@ -69,15 +69,39 @@ def _SP_Helper(uri, UF_List):
     r=requests.get(uri)
     dic=r.json()
 
+    # test
+    g=open("wsb.json")
+    dic=json.load(g)
+
+
+
     result=""
     keyList, wordList=_getJSONValues(dic)
     
-    # Seperates strings with multiple words
+    # Seperates strings with multiple words, removes urls
+    # count=0
+    # for s in wordList:
+    #     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+    #     urls = re.findall(regex,s)
+    #     for u in urls:
+    #         for u in urls:
+    #             count+=1
+    #             s=s.replace(u[0], '')
+    #             print(s)
+    
+    
+    
+    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
     n=0
     while(n<len(wordList)):
         wordList[n]=wordList[n].lower()        
+        
+        urls=re.findall(regex,wordList[n])
+        for u in urls:
+            wordList[n]=wordList[n].replace(u[0], '')
+                
 
-        Words=split(r"[-/_;:,.!?\s()]\s*",wordList[n])
+        Words=re.split(r"[-/_;:,.!?\s()]\s*",wordList[n])
         if (len(Words)>1):
             k=keyList[n]
             del wordList[n]
@@ -93,7 +117,7 @@ def _SP_Helper(uri, UF_List):
     
     #runs spell checker and puts misspelled words in a list
     misspelled=list(spell.unknown(wordList))
-
+    print(len(misspelled))
     if len(misspelled)==0: return "No mistakes\n"
     
     # creates output             
@@ -124,7 +148,8 @@ def _getJSONValues(Obj, Words=[], Keys=[]):
 # Main method to run tests in
 def main():
     # SpellCheck("http://api.open-notify.org/astros.json" ,outputFN="Trash\\trash.txt")
-    SpellCheckMult("API.json" ,outputFN="Trash\\trash.txt")
+    SpellCheck("https://www.reddit.com/r/Wallstreetbets/top.json?limit=10&t=year" ,outputFN="Trash\\trash.txt")
+    # SpellCheckMult("API.json" ,outputFN="Trash\\trash.txt")
 
 
 if __name__=="__main__":
