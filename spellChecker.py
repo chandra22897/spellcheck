@@ -69,28 +69,9 @@ def _SP_Helper(uri, UF_List):
     r=requests.get(uri)
     dic=r.json()
 
-    # test
-    g=open("wsb.json")
-    dic=json.load(g)
-
-
-
     result=""
     keyList, wordList=_getJSONValues(dic)
-    
-    # Seperates strings with multiple words, removes urls
-    # count=0
-    # for s in wordList:
-    #     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
-    #     urls = re.findall(regex,s)
-    #     for u in urls:
-    #         for u in urls:
-    #             count+=1
-    #             s=s.replace(u[0], '')
-    #             print(s)
-    
-    
-    
+
     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
     n=0
     while(n<len(wordList)):
@@ -117,7 +98,7 @@ def _SP_Helper(uri, UF_List):
     
     #runs spell checker and puts misspelled words in a list
     misspelled=list(spell.unknown(wordList))
-    print(len(misspelled))
+   
     if len(misspelled)==0: return "No mistakes\n"
     
     # creates output             
