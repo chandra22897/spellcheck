@@ -1,4 +1,4 @@
-# Tarun Paravasthu, 7/11/22
+# Tarun Paravasthu, 7/14/22
 # Runs a spell check on JSON API calls
 # Contains functions SpellCheck, SpellCheckMult, and helper methods _SP_Helper and getJSONValues
 
@@ -22,7 +22,7 @@ def SpellCheck(uri, unflagFN=None, outputFN=OPFN):
         u=open(unflagFN, encoding='utf-8')
         st=u.read()
         u.close()
-        UF_List=re.split(r"[-/_;:,.!?\s()]\s*",st)
+        UF_List=st.split()
 
     # prints output to txt file
     output=open(outputFN, 'w', encoding='utf-8')
@@ -46,7 +46,7 @@ def SpellCheckMult(inputFN, unflagFN=None, outputFN=OPFN):
         u=open(unflagFN, encoding='utf-8')
         st=u.read()
         u.close()
-        UF_List=re.split(r"[-/_;:,.!?\s()]\s*",st)
+        UF_List=st.split()
     
     # Checks for bad uris
     for a in uris:
@@ -69,27 +69,31 @@ def _SP_Helper(uri, UF_List):
     r=requests.get(uri)
     dic=r.json()
 
+    # # test
+    # g=open("wsb.json")
+    # dic=json.load(g)
+
     result=""
     keyList, wordList=_getJSONValues(dic)
-
-    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+   
+    regex='http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
     n=0
     while(n<len(wordList)):
         wordList[n]=wordList[n].lower()        
         
         urls=re.findall(regex,wordList[n])
         for u in urls:
-            wordList[n]=wordList[n].replace(u[0], '')
-                
-
-        Words=re.split(r"[-/_;:,.!?\s()]\s*",wordList[n])
+            wordList[n]=wordList[n].replace(u, '')
+        Words=re.split(r'[-/_;:,."=!?()\s]\s*',wordList[n])
         if (len(Words)>1):
             k=keyList[n]
             del wordList[n]
             del keyList[n]
-            for word in reversed(Words):      
-                wordList.insert(n,word)
-                keyList.insert(n, k)  
+            for word in reversed(Words):
+                if not any(x in word for x in r"/\\{}[]()$%#+-"):      
+                    wordList.insert(n,word)
+                    keyList.insert(n, k)  
+                
         n+=1
     
     #adds special words to the dictionary
@@ -98,7 +102,7 @@ def _SP_Helper(uri, UF_List):
     
     #runs spell checker and puts misspelled words in a list
     misspelled=list(spell.unknown(wordList))
-   
+    print(len(misspelled))
     if len(misspelled)==0: return "No mistakes\n"
     
     # creates output             
@@ -128,10 +132,10 @@ def _getJSONValues(Obj, Words=[], Keys=[]):
 
 # Main method to run tests in
 def main():
-    # SpellCheck("http://api.open-notify.org/astros.json" ,outputFN="Trash\\trash.txt")
-    SpellCheck("https://www.reddit.com/r/Wallstreetbets/top.json?limit=10&t=year" ,outputFN="Trash\\trash.txt")
-    # SpellCheckMult("API.json" ,outputFN="Trash\\trash.txt")
-
+    #SpellCheck("http://api.open-notify.org/astros.json")
+    # SpellCheck("https://www.reddit.com/r/Wallstreetbets/top.json?limit=10&t=year")
+    # SpellCheckMult("API.json")
+    None
 
 if __name__=="__main__":
     main()
