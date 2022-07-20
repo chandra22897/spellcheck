@@ -129,10 +129,7 @@ def _getJSONValues(Obj, Words=[], Keys=[]):
 
 # Main method to run tests in
 def main():
-    SpellCheck("http://api.open-notify.org/astros.json" , outputFN="Trash\\trash.txt",unflagFN="special.txt")
-    # SpellCheck("http://api.open-notify.org/astros.json" ,outputFN="Trash\\trash.txt")
-    # SpellCheck("https://www.reddit.com/r/Wallstreetbets/top.json?limit=10&t=year" ,outputFN="Trash\\trash.txt")
-    # SpellCheckMult("input.txt" ,outputFN="Trash\\trash.txt")
+   None
 
 
 if __name__=="__main__":
