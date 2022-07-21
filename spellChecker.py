@@ -2,6 +2,7 @@
 # Runs a spell check on JSON API calls
 # Contains functions SpellCheck, SpellCheckMult, and helper methods _SP_Helper and getJSONValues
 
+
 from spellchecker import SpellChecker
 from datetime import datetime
 import os 
@@ -10,25 +11,24 @@ from concurrent.futures import ProcessPoolExecutor
 import re
 from itertools import repeat
 import requests
-from collections import Counter
+from multiprocessing import Event
+
+
 OPFN="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
 
-# Main Function
-def SpellCheck(input, typeArg=0, unflag=None, output=OPFN):
-    if typeArg==0: _SP_Single(input, unflag, output)
-    if typeArg==1: _SP_Mult(input, unflag, output)
-    
-
+def SpellCheck(input, howMany='m', unflag=None, output=OPFN):
+    if howMany=='m': _SP_Mult(input, unflag, output)
+    if howMany=='s': _SP_Single(input, unflag, output)
 
 # Given a url, makes an api call and runs a spell check on the json file 
 # Parameters:input file name, name of file with words to ignore (optional), output file name (optional)
 def _SP_Single(url, unflagFN=None, outputFN=OPFN):
-    # Makes a list of special words to ignore             (can make this an API call as well if needed)
+    # Makes a list of special words to ignore             
     UF_List=_make_UF_List(unflagFN)
 
     # prints output to text file
     output=open(outputFN, 'w', encoding='utf-8')
-    print(f"{url}:\n", file=output)
+    print(url, file=output, end="")
     print(_SP_Helper(url, UF_List), file=output)
     output.close()
     
@@ -44,16 +44,11 @@ def _SP_Mult(inputFN, unflagFN=None, outputFN=OPFN):
     # Makes a list of special words to ignore
     UF_List=_make_UF_List(unflagFN)
     
-    # Checks for bad urls
-    for a in urls:
-        try: requests.get(a)
-        except: urls.remove(a)
-    
     output=open(outputFN, 'w', encoding='utf-8')
     with ProcessPoolExecutor() as executor:                
         results=executor.map(_SP_Helper, urls, repeat(UF_List))
         for n,result in enumerate(results):
-            print(f"File {n+1}: {urls[n]}\n",file=output)
+            print(f"File {n+1}: {urls[n]}",file=output, end="")
             print(result, file=output)
     output.close()
 
@@ -62,10 +57,8 @@ def _SP_Mult(inputFN, unflagFN=None, outputFN=OPFN):
 def _SP_Helper(url, UF_List):
     
     # Gets json file from API
-    r=requests.get(url)
-    if r.status_code!=200:
-        return f"Error {r.status_code}"
-    dic=r.json()
+    dic=_call_API(url)
+    if isinstance(dic,str): return dic
 
     result=""
     keyList, wordList=_getJSONValues(dic)
@@ -95,8 +88,7 @@ def _SP_Helper(url, UF_List):
                 wordList.insert(n,word)
                 keyList.insert(n, k)
                 n+=1
-        
- 
+                
     #adds special words to the dictionary
     spell = SpellChecker()
     spell.word_frequency.load_words(UF_List)
@@ -104,25 +96,35 @@ def _SP_Helper(url, UF_List):
     #runs spell checker and puts misspelled words in a list
     
     misspelled=list(spell.unknown(wordList))
-    if len(misspelled)==0: return "No mistakes\n"
-    count=Counter(wordList)
-    # print (len(misspelled))
+    count=len(misspelled)
+    if count==0: return "No mistakes\n"
 
-    # creates output string
-    repeats=[]
+    # creates output string   
+    result+=f" ({count})\n"  
     for i,word in enumerate(wordList):
-        if word in misspelled and word not in repeats:
-            repeats.append(word)
-            wordStr=f"{word} ({count[word]})"
-            inds=get_index_positions(wordList, word)
-            keyStr=""
-            
-            for j,ind in enumerate(inds):
-              if j>0: keyStr+=", "
-              keyStr+=keyList[ind]
-            result+=f"{wordStr.ljust(20)} {spell.correction(word).ljust(20)}Keys:{keyStr}\n"
+        if word in misspelled:  
+            result+=f"{word.ljust(20)} {spell.correction(word).ljust(20)}Key:{keyList[i]}\n"
     return result
 
+# Makes a post call to the given url, catches errors and retries in case of error 502
+def _call_API(url):
+    try:
+        # r=requests.get(url)
+        r=requests.post(url)
+        if r.status_code!=200:
+            count=0
+            while r.status_code==502 or count==3:
+                e=Event
+                e.wait(60)
+                r=requests.post(url)
+                count+=1
+                
+            return f"\nError {r.status_code}"
+        else: return r.json() 
+    except:
+        return "\nUnknown Error: Check url"
+
+# Takes text file and creates a list of words
 def _make_UF_List(filename):
     if filename==None: UF_List=[]
     else:
@@ -155,21 +157,18 @@ def get_index_positions(list_of_elems, element):
     index_pos = 0
     while True:
         try:
-            # Search for item in list from indexPos to the end of list
             index_pos = list_of_elems.index(element, index_pos)
-            # Add the index position in list
             index_pos_list.append(index_pos)
             index_pos += 1
         except ValueError as e:
             break
     return index_pos_list
 
-
 # Main method to run tests in
 def main():
     
-    SpellCheck("input.txt",typeArg=1)
-
+    SpellCheck("input.txt")
+    
 
 if __name__=="__main__":
     main()
