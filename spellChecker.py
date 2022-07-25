@@ -119,7 +119,8 @@ def _call_API(url):
                 r=requests.post(url)
                 count+=1
                 
-            return f"\nError {r.status_code}"
+            if r.status_code==200:  return r
+            else: return f"\nError {r.status_code}"
         else: return r.json() 
     except:
         return "\nUnknown Error: Check url"
