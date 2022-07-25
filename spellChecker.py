@@ -1,6 +1,6 @@
-# Tarun Paravasthu, 7/20/22 
+# Tarun Paravasthu, 7/25/22 
 # Runs a spell check on JSON API calls
-# Contains functions SpellCheck, SpellCheckMult, and helper methods _SP_Helper and getJSONValues
+# Contains SpellCheck function for JSON api calls, and helper methods
 
 
 from spellchecker import SpellChecker
@@ -16,6 +16,8 @@ from multiprocessing import Event
 
 OPFN="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
 
+# MAIN FUNCTION
+# Parameters:input (name of file with urls or url), optional: howMany: determines type of input, unflag=name of file with reserved words, output=name of output file
 def SpellCheck(input, howMany='m', unflag=None, output=OPFN):
     if howMany=='m': _SP_Mult(input, unflag, output)
     if howMany=='s': _SP_Single(input, unflag, output)
@@ -23,7 +25,7 @@ def SpellCheck(input, howMany='m', unflag=None, output=OPFN):
 # Given a url, makes an api call and runs a spell check on the json file 
 # Parameters:input file name, name of file with words to ignore (optional), output file name (optional)
 def _SP_Single(url, unflagFN=None, outputFN=OPFN):
-    # Makes a list of special words to ignore             
+    # Makes a list of special words to ignore             (can make this an API call as well if needed)
     UF_List=_make_UF_List(unflagFN)
 
     # prints output to text file
@@ -58,43 +60,19 @@ def _SP_Helper(url, UF_List):
     
     # Gets json file from API
     dic=_call_API(url)
-    if isinstance(dic,str): return dic
-
+    if isinstance(dic,str): return dic                      #for error messages
+    
     result=""
+
+    # Creates and organizes a list of words and a list of keys
     keyList, wordList=_getJSONValues(dic)
-    
-    # Organizes List
-    regex='http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    n=0
-    
-    while(n<len(wordList)):
-        wordList[n]=wordList[n].lower()        
-        
-        # Filters out urls
-        urls=re.findall(regex,wordList[n])
-        for u in urls:
-            wordList[n]=wordList[n].replace(u, '')
-        
-        # Splits values with multiple words and filters out words with numbers or special characters
-        Words=re.split(r'[-/_;:,."=!?()\s]\s*',wordList[n])
-        
-        rem=r"0123456789/\\{}[]()&$%_#\+\-"
-        Words=[x for x in Words if not (x=='' or any(z in x for z in rem))]
-        
-        k=keyList[n]
-        del wordList[n]
-        del keyList[n]
-        for word in reversed(Words):
-                wordList.insert(n,word)
-                keyList.insert(n, k)
-                n+=1
-                
+    keyList, wordList=filter_words(keyList, wordList)
+
     #adds special words to the dictionary
     spell = SpellChecker()
     spell.word_frequency.load_words(UF_List)
     
     #runs spell checker and puts misspelled words in a list
-    
     misspelled=list(spell.unknown(wordList))
     count=len(misspelled)
     if count==0: return "No mistakes\n"
@@ -106,19 +84,48 @@ def _SP_Helper(url, UF_List):
             result+=f"{word.ljust(20)} {spell.correction(word).ljust(20)}Key:{keyList[i]}\n"
     return result
 
+# removes urls and special characters, splits "words" that contain spaces or other seperators
+# Parameters: list of words, list of keys
+def filter_words(keyList, wordList):
+    regex='http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    rem=r"0123456789/\\{}[]()&$%_#\+\-"
+    n=0
+   
+    while(n<len(wordList)):
+        wordList[n]=wordList[n].lower()        
+        
+        # Filters out urls
+        urls=re.findall(regex,wordList[n])
+        for u in urls:
+            wordList[n]=wordList[n].replace(u, '')
+        
+        # Splits values with multiple words and filters out words with numbers or special characters
+        Words=re.split(r'[-/_;:,."=!?()\s]\s*',wordList[n])
+        Words=[x for x in Words if not (x=='' or any(z in x for z in rem))]
+
+        k=keyList[n]
+        if len(Words)==1 and wordList[n]==Words[0]:
+            n+=1
+        else:
+            del wordList[n]
+            del keyList[n]
+            for word in Words:  
+                wordList.insert(n,word)
+                keyList.insert(n, k)
+                n+=1
+    return keyList,wordList
+
 # Makes a post call to the given url, catches errors and retries in case of error 502
 def _call_API(url):
     try:
-        # r=requests.get(url)
-        r=requests.post(url)
+        r=requests.get(url)
         if r.status_code!=200:
             count=0
-            while r.status_code==502 and count<3:
+            while r.status_code==502 or count==3:
                 e=Event()
                 e.wait(60)
-                r=requests.post(url)
+                r=requests.get(url)
                 count+=1
-                
             if r.status_code==200:  return r
             else: return f"\nError {r.status_code}"
         else: return r.json() 
@@ -149,7 +156,7 @@ def _getJSONValues(Obj, Words=[], Keys=[]):
             if isinstance(inner_obj, dict) or isinstance(inner_obj, list):
                 _getJSONValues(inner_obj, Words, Keys)
             else:
-                Words.append(str(inner_obj))
+                Words.append(str(inner_obj))            #never executes
     return Keys,Words
 
 # Given a list and element, returns a list of all indices which contain the element
@@ -164,12 +171,11 @@ def get_index_positions(list_of_elems, element):
         except ValueError as e:
             break
     return index_pos_list
-
 # Main method to run tests in
 def main():
     
-    SpellCheck("input.txt")
-    
+    # SpellCheck("input.txt" ,output="Trash\\trash.txt")
+    SpellCheck("http://api.open-notify.org/astros.json", howMany='s',output="Trash\\trash.txt")
 
 if __name__=="__main__":
     main()
