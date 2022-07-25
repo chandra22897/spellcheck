@@ -113,7 +113,7 @@ def _call_API(url):
         r=requests.post(url)
         if r.status_code!=200:
             count=0
-            while r.status_code==502 or count==3:
+            while r.status_code==502 and count<3:
                 e=Event
                 e.wait(60)
                 r=requests.post(url)
