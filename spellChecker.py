@@ -1,5 +1,5 @@
-# Tarun Paravasthu, 7/27/22 
-# Runs a spell check on JSON API calls
+# Tarun Paravasthu, 7/25/22 
+# Runs a spell check on JSON API calls and files
 # Contains functions SpellCheck, SpellCheckMult, and helper methods _SP_Helper and getJSONValues
 
 from spellchecker import SpellChecker
@@ -12,10 +12,20 @@ from itertools import repeat
 import requests
 from multiprocessing import Event
 
+default="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
 
-OPFN="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
+'''
+Main Function SpellCheck()
+Parameters: input, arg for type of input(optional), unflag file with reserved keywords (optional), output for file output file(optional)
+args:
+m(default)--input is a text file with multiple urls in it
+s--input is a single url
+fs--input is a single local json file name
+ms--input is a text file with multiple json file names in it
 
-def SpellCheck(input, arg='m', unflag=None, output=OPFN):
+Note: majority of run time is in finding corrections for wrong words
+'''
+def SpellCheck(input, arg='m', unflag=None, output=default):
     if arg=='m': _SP_Mult(input, unflag, output)
     if arg=='s': _SP_Single(input, unflag, output)
     if arg=='fs':_SP_Single(input, unflag, output, f=True)
@@ -24,7 +34,7 @@ def SpellCheck(input, arg='m', unflag=None, output=OPFN):
 
 # Given a url, makes an api call and runs a spell check on the json file 
 # Parameters:input file name, name of file with words to ignore (optional), output file name (optional)
-def _SP_Single(url, unflagFN=None, outputFN=OPFN, f=False):
+def _SP_Single(url, unflagFN=None, outputFN=default, f=False):
     output=open(outputFN, 'w', encoding='utf-8')
     print(url, file=output, end="")
     print(_SP_Helper(url, unflagFN, f=f), file=output)
@@ -32,7 +42,7 @@ def _SP_Single(url, unflagFN=None, outputFN=OPFN, f=False):
     
 # Given a text file with urls, uses multiprocessing to run a spell check on all of them
 # Parameters:input file name, name of file with words to ignore (optional), output file name (optional)
-def _SP_Mult(inputFN, unflagFN=None, outputFN=OPFN, F=False):
+def _SP_Mult(inputFN, unflagFN=None, outputFN=default, F=False):
 
     # Reads text file with APIs/files                         (format?)
     f=open(inputFN)                                     
@@ -63,8 +73,7 @@ def _SP_Helper(url, unflag, f):
             f.close()
         except Exception as e:
             return e
-    
-    
+        
     result=""
 
     # Creates and organizes a list of words and a list of keys
@@ -92,8 +101,8 @@ def _SP_Helper(url, unflag, f):
 def filter_words(keyList, wordList):
     regex='http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
     rem="0123456789{}[]&$%#\+\-@"
-    n=0
     
+    n=0
     while(n<len(wordList)):
         wordList[n]=wordList[n].lower()        
         
@@ -108,13 +117,13 @@ def filter_words(keyList, wordList):
         for u in urls:
             wordList[n]=wordList[n].replace(u, '')
 
-        
+        # Splits words and removes special characters
         Words=re.split(r'[-/_;:,."=|!()\s]\s*',wordList[n])
         Words=[x for x in Words if not (len(x)<=1 or any(z in x for z in rem))]
         for j in range(len(Words)):                                             #special case
             Words[j]=Words[j].replace('?','')
 
-
+        # Updates original list
         k=keyList[n]
         if len(Words)==1 and wordList[n]==Words[0]:
             n+=1
@@ -128,7 +137,7 @@ def filter_words(keyList, wordList):
     
     return keyList,wordList
 
-# Makes a post call to the given url, catches errors and retries in case of error 502
+# Makes a get call to the given url, catches errors and retries in case of error 502(last part untested)
 def _call_API(url):
     try:
         r=requests.get(url)
@@ -162,25 +171,15 @@ def _getJSONValues(Obj, Words=[], Keys=[]):
                 Words.append(str(inner_obj))            #never executes
     return Keys,Words
 
-# Given a list and element, returns a list of all indices which contain the element
-def get_index_positions(list_of_elems, element):
-    index_pos_list = []
-    index_pos = 0
-    while True:
-        try:
-            index_pos = list_of_elems.index(element, index_pos)
-            index_pos_list.append(index_pos)
-            index_pos += 1
-        except ValueError as e:
-            break
-    return index_pos_list
     
-# Main method to run tests in
+# Main method to run tests in, prints time
 import time
 def main():
     start=time.perf_counter()
-    # SpellCheck("Merchant_services.json", arg='fs', unflag='saved_strings.txt', output='Trash\\trash.txt')
-    SpellCheck("input.txt", arg='fm', unflag='saved_strings.txt', output='Trash\\trash.txt')
+    SpellCheck("Merchant_services.json", arg='fs', unflag='saved_strings.txt')
+    # SpellCheck("input.txt", arg='fm', unflag='saved_strings.txt)
+    
     print(time.perf_counter()-start)
+    
 if __name__=="__main__":
     main()
