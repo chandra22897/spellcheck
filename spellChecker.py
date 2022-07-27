@@ -1,7 +1,6 @@
-# Tarun Paravasthu, 7/25/22 
+# Tarun Paravasthu, 7/27/22 
 # Runs a spell check on JSON API calls
-# Contains SpellCheck function for JSON api calls, and helper methods
-
+# Contains functions SpellCheck, SpellCheckMult, and helper methods _SP_Helper and getJSONValues
 
 from spellchecker import SpellChecker
 from datetime import datetime
@@ -16,39 +15,34 @@ from multiprocessing import Event
 
 OPFN="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
 
-# MAIN FUNCTION
-# Parameters:input (name of file with urls or url), optional: howMany: determines type of input, unflag=name of file with reserved words, output=name of output file
-def SpellCheck(input, howMany='m', unflag=None, output=OPFN):
-    if howMany=='m': _SP_Mult(input, unflag, output)
-    if howMany=='s': _SP_Single(input, unflag, output)
+def SpellCheck(input, arg='m', unflag=None, output=OPFN):
+    if arg=='m': _SP_Mult(input, unflag, output)
+    if arg=='s': _SP_Single(input, unflag, output)
+    if arg=='fs':_SP_Single(input, unflag, output, f=True)
+    if arg=='fm': _SP_Mult(input, unflagFN=unflag, outputFN=output, F=True)
+    
 
 # Given a url, makes an api call and runs a spell check on the json file 
 # Parameters:input file name, name of file with words to ignore (optional), output file name (optional)
-def _SP_Single(url, unflagFN=None, outputFN=OPFN):
-    # Makes a list of special words to ignore             (can make this an API call as well if needed)
-    UF_List=_make_UF_List(unflagFN)
-
-    # prints output to text file
+def _SP_Single(url, unflagFN=None, outputFN=OPFN, f=False):
     output=open(outputFN, 'w', encoding='utf-8')
     print(url, file=output, end="")
-    print(_SP_Helper(url, UF_List), file=output)
+    print(_SP_Helper(url, unflagFN, f=f), file=output)
     output.close()
     
 # Given a text file with urls, uses multiprocessing to run a spell check on all of them
 # Parameters:input file name, name of file with words to ignore (optional), output file name (optional)
-def _SP_Mult(inputFN, unflagFN=None, outputFN=OPFN):
+def _SP_Mult(inputFN, unflagFN=None, outputFN=OPFN, F=False):
 
-    # Reads text file with APIs                         (format?)
+    # Reads text file with APIs/files                         (format?)
     f=open(inputFN)                                     
     r=f.read();
+    f.close()
     urls=r.split()
-    
-    # Makes a list of special words to ignore
-    UF_List=_make_UF_List(unflagFN)
     
     output=open(outputFN, 'w', encoding='utf-8')
     with ProcessPoolExecutor() as executor:                
-        results=executor.map(_SP_Helper, urls, repeat(UF_List))
+        results=executor.map(_SP_Helper, urls, repeat(unflagFN), repeat(F))
         for n,result in enumerate(results):
             print(f"File {n+1}: {urls[n]}",file=output, end="")
             print(result, file=output)
@@ -56,27 +50,36 @@ def _SP_Mult(inputFN, unflagFN=None, outputFN=OPFN):
 
 # Gets a JSON file from an API and runs a spellcheck on it, returns string with results
 # Parameters: url of API, List of words to unflag
-def _SP_Helper(url, UF_List):
+def _SP_Helper(url, unflag, f):
     
     # Gets json file from API
-    dic=_call_API(url)
-    if isinstance(dic,str): return dic                      #for error messages
+    if not f:
+        dic=_call_API(url)
+        if isinstance(dic,str): return dic                      #for error messages
+    else:
+        try:
+            f=open(url)
+            dic=json.load(f)
+            f.close()
+        except Exception as e:
+            return e
+    
     
     result=""
 
     # Creates and organizes a list of words and a list of keys
     keyList, wordList=_getJSONValues(dic)
     keyList, wordList=filter_words(keyList, wordList)
-
+    
     #adds special words to the dictionary
     spell = SpellChecker()
-    spell.word_frequency.load_words(UF_List)
+    if unflag!=None: spell.word_frequency.load_text_file(unflag)
     
     #runs spell checker and puts misspelled words in a list
     misspelled=list(spell.unknown(wordList))
     count=len(misspelled)
     if count==0: return "No mistakes\n"
-
+             
     # creates output string   
     result+=f" ({count})\n"  
     for i,word in enumerate(wordList):
@@ -88,20 +91,29 @@ def _SP_Helper(url, UF_List):
 # Parameters: list of words, list of keys
 def filter_words(keyList, wordList):
     regex='http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    rem=r"0123456789/\\{}[]()&$%_#\+\-"
+    rem="0123456789{}[]&$%#\+\-@"
     n=0
-   
+    
     while(n<len(wordList)):
         wordList[n]=wordList[n].lower()        
         
+        # Custom
+        if keyList[n]=='field_name':
+            del keyList[n]
+            del wordList[n]
+            continue
+
         # Filters out urls
         urls=re.findall(regex,wordList[n])
         for u in urls:
             wordList[n]=wordList[n].replace(u, '')
+
         
-        # Splits values with multiple words and filters out words with numbers or special characters
-        Words=re.split(r'[-/_;:,."=!?()\s]\s*',wordList[n])
-        Words=[x for x in Words if not (x=='' or any(z in x for z in rem))]
+        Words=re.split(r'[-/_;:,."=|!()\s]\s*',wordList[n])
+        Words=[x for x in Words if not (len(x)<=1 or any(z in x for z in rem))]
+        for j in range(len(Words)):                                             #special case
+            Words[j]=Words[j].replace('?','')
+
 
         k=keyList[n]
         if len(Words)==1 and wordList[n]==Words[0]:
@@ -113,6 +125,7 @@ def filter_words(keyList, wordList):
                 wordList.insert(n,word)
                 keyList.insert(n, k)
                 n+=1
+    
     return keyList,wordList
 
 # Makes a post call to the given url, catches errors and retries in case of error 502
@@ -131,16 +144,6 @@ def _call_API(url):
         else: return r.json() 
     except:
         return "\nUnknown Error: Check url"
-
-# Takes text file and creates a list of words
-def _make_UF_List(filename):
-    if filename==None: UF_List=[]
-    else:
-        u=open(filename, encoding='utf-8')
-        st=u.read()
-        u.close()
-        UF_List=st.split()
-    return UF_List
 
 # Given a JSON dictionary, recursively returns a list of keys and a list of values. Words and Keys should not be changed
 def _getJSONValues(Obj, Words=[], Keys=[]):
@@ -171,11 +174,13 @@ def get_index_positions(list_of_elems, element):
         except ValueError as e:
             break
     return index_pos_list
-# Main method to run tests in
-def main():
     
-    # SpellCheck("input.txt" ,output="Trash\\trash.txt")
-    SpellCheck("http://api.open-notify.org/astros.json", howMany='s',output="Trash\\trash.txt")
-
+# Main method to run tests in
+import time
+def main():
+    start=time.perf_counter()
+    # SpellCheck("Merchant_services.json", arg='fs', unflag='saved_strings.txt', output='Trash\\trash.txt')
+    SpellCheck("input.txt", arg='fm', unflag='saved_strings.txt', output='Trash\\trash.txt')
+    print(time.perf_counter()-start)
 if __name__=="__main__":
     main()
