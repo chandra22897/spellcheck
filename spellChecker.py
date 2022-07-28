@@ -1,7 +1,8 @@
-# Tarun Paravasthu, 7/27/22 
+# Tarun Paravasthu, 7/25/22 
 # Runs a spell check on JSON API calls and files
 # Contains functions SpellCheck, SpellCheckMult, and helper methods _SP_Helper and getJSONValues
 
+import multiprocessing
 from spellchecker import SpellChecker
 from datetime import datetime
 import os 
@@ -16,7 +17,7 @@ default="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
 
 '''
 Main Function SpellCheck()
-Parameters: input, arg for type of input(optional), unflag file with reserved keywords (optional), output for file output file(optional)
+Parameters: input, arg for type of input, unflag file with reserved keywords (optional), output for file output file(optional)
 args:
 m(default)--input is a text file with multiple urls in it
 s--input is a single url
@@ -51,7 +52,7 @@ def _SP_Mult(inputFN, unflagFN=None, outputFN=default, F=False):
     urls=r.split()
     
     output=open(outputFN, 'w', encoding='utf-8')
-    with ProcessPoolExecutor() as executor:                
+    with ProcessPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:                
         results=executor.map(_SP_Helper, urls, repeat(unflagFN), repeat(F))
         for n,result in enumerate(results):
             print(f"File {n+1}: {urls[n]}",file=output, end="")
@@ -73,7 +74,8 @@ def _SP_Helper(url, unflag, f):
             f.close()
         except Exception as e:
             return e
-        
+    
+    
     result=""
 
     # Creates and organizes a list of words and a list of keys
@@ -91,9 +93,17 @@ def _SP_Helper(url, unflag, f):
              
     # creates output string   
     result+=f" ({count})\n"  
+    repeats={}
     for i,word in enumerate(wordList):
-        if word in misspelled:  
-            result+=f"{word.ljust(20)} {spell.correction(word).ljust(20)}Key:{keyList[i]}\n"
+        if word in misspelled:
+            try:
+                corr=repeats[word]
+            except:
+                corr=spell.correction(word)
+                temp={word:corr}
+                repeats.update(temp)
+            
+            result+=f"{word.ljust(20)} {corr.ljust(20)}Key:{keyList[i]}\n"
     return result
 
 # removes urls and special characters, splits "words" that contain spaces or other seperators
@@ -101,8 +111,8 @@ def _SP_Helper(url, unflag, f):
 def filter_words(keyList, wordList):
     regex='http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
     rem="0123456789{}[]&$%#\+\-@"
-    
     n=0
+    
     while(n<len(wordList)):
         wordList[n]=wordList[n].lower()        
         
@@ -123,7 +133,7 @@ def filter_words(keyList, wordList):
         for j in range(len(Words)):                                             #special case
             Words[j]=Words[j].replace('?','')
 
-        # Updates original list
+
         k=keyList[n]
         if len(Words)==1 and wordList[n]==Words[0]:
             n+=1
@@ -176,10 +186,10 @@ def _getJSONValues(Obj, Words=[], Keys=[]):
 import time
 def main():
     start=time.perf_counter()
-    SpellCheck("Merchant_services.json", arg='fs', unflag='saved_strings.txt')
-    # SpellCheck("input.txt", arg='fm', unflag='saved_strings.txt)
+    # SpellCheck("astros.json", arg='fs', unflag='saved_strings.txt', output='Trash\\trash.txt')
+    # SpellCheck("http://api.open-notify.org/astros.json", arg='s', unflag='saved_strings.txt', output='Trash\\trash.txt')
+    SpellCheck("input.txt", arg='fm', unflag='saved_strings.txt')
     
     print(time.perf_counter()-start)
-    
 if __name__=="__main__":
     main()
