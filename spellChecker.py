@@ -17,14 +17,14 @@ default="sp_result_" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S") +".txt"
 
 '''
 Main Function SpellCheck()
-Parameters: input, arg for type of input, unflag file with reserved keywords (optional), output for file output file(optional)
+Parameters: input, arg for type of input, unflag file with reserved words (optional), output for file output file(optional)
 args:
 m(default)--input is a text file with multiple urls in it
 s--input is a single url
 fs--input is a single local json file name
 ms--input is a text file with multiple json file names in it
 
-Note: majority of run time is in finding corrections for wrong words
+Note: majority of run time is in finding corrections for wrong words and size of unflag file
 '''
 def SpellCheck(input, arg='m', unflag=None, output=default):
     if arg=='m': _SP_Mult(input, unflag, output)
