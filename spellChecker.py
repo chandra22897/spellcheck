@@ -179,6 +179,7 @@ def _getJSONValues(Obj, Words=[], Keys=[]):
                 _getJSONValues(inner_obj, Words, Keys)
             else:
                 Words.append(str(inner_obj))            #never executes
+                Keys.append('[Error: No Key]')
     return Keys,Words
 
     
